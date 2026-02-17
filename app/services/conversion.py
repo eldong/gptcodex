@@ -2,9 +2,14 @@
 from __future__ import annotations
 
 import httpx
+import logging
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Dict, List, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # API endpoint for exchange rates (ExchangeRate-API open access)
 _API_URL = "https://open.er-api.com/v6/latest/USD"
@@ -40,8 +45,7 @@ def _fetch_exchange_rates() -> Dict[str, Decimal]:
         # Convert rates to Decimal for precision
         return {code: Decimal(str(rate)) for code, rate in rates.items()}
     except Exception as e:
-        # Log the error (in production, use proper logging)
-        print(f"Failed to fetch exchange rates: {e}")
+        logger.error(f"Failed to fetch exchange rates: {e}")
         raise
 
 
@@ -52,7 +56,7 @@ def _get_rates() -> Dict[str, Decimal]:
     """
     global _rates_cache, _cache_timestamp
     
-    now = datetime.now()
+    now = datetime.now(timezone.utc)
     
     # Return cached rates if they're still fresh
     if _rates_cache and _cache_timestamp:
@@ -67,8 +71,10 @@ def _get_rates() -> Dict[str, Decimal]:
     except Exception:
         # If we have cached rates (even if expired), use them
         if _rates_cache:
+            logger.warning("Using expired cache due to API failure")
             return _rates_cache
         # Otherwise, fall back to hardcoded rates
+        logger.warning("Using fallback rates due to API failure")
         return _FALLBACK_RATES
 
 
